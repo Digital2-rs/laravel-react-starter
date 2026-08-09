@@ -22,9 +22,9 @@
 app/
 ├── Actions/
 │   └── Addresses/
-│       ├── CreateAddressAction.php
-│       ├── UpdateAddressAction.php
-│       └── DeleteAddressAction.php
+│       ├── CreateAddress.php
+│       ├── UpdateAddress.php
+│       └── DeleteAddress.php
 ├── Console/
 │   └── Commands/
 │       └── SyncRecordsCommand.php
@@ -33,7 +33,7 @@ app/
 ├── Enums/
 │   └── UserRole.php
 ├── Events/
-│   └── PartnerRegistrationApproved.php
+│   └── RegistrationApproved.php
 ├── Http/
 │   ├── Controllers/
 │   │   ├── AddressController.php
@@ -51,12 +51,12 @@ app/
 ├── Models/
 │   └── Address.php
 ├── Notifications/
-│   └── UserInvitationNotification.php
+│   └── UserInvitation.php
 ├── Policies/
 │   └── AddressPolicy.php
 ├── Providers/
 ├── Queries/
-│   └── ActivePartnersQuery.php
+│   └── ActivePartners.php
 ├── Services/
 │   ├── Erp.php
 │   ├── Nbs.php
@@ -108,17 +108,17 @@ resources/
 
 ### 3.1 Actions
 
-An Action is named **verb + noun + `Action` suffix**, in `PascalCase`. Grouped by domain (`Actions/Addresses/`).
+An Action is named **verb + noun**, in `PascalCase`. Grouped by domain (`Actions/Addresses/`).
 
 ```php
 // Good
-CreateAddressAction
-UpdateAddressAction
-DeleteAddressAction
+CreateAddress
+UpdateAddress
+DeleteAddress
 ```
 
 ```php
-// Bad — no suffix, no verb, or unclear scope
+// Bad — no verb, or unclear scope
 Address
 AddressManager
 HandleAddress
@@ -236,7 +236,7 @@ Any work that mutates data is wrapped in **`DB::transaction()`** so the operatio
 
 ```php
 // Good
-final class CreateAddressAction
+final class CreateAddress
 {
     public function __construct(
         private readonly Geocoder $geocoder,
@@ -266,7 +266,7 @@ final class CreateAddressAction
 
 ```php
 // Bad — multiple public methods, no transaction, returns a redirect
-class CreateAddressAction
+class CreateAddress
 {
     public function handle(array $data) { /* ... */ }
 
@@ -284,10 +284,10 @@ class CreateAddressAction
 
 ```php
 // Good — standalone logic extracted into its own Action class
-final class CreateAddressAction
+final class CreateAddress
 {
     public function __construct(
-        private readonly ResetDefaultAddressesAction $resetDefaults,
+        private readonly ResetDefaultAddresses $resetDefaults,
     ) {}
 
     public function handle(Partner $partner, AddressData $data): Address
@@ -308,7 +308,7 @@ final class CreateAddressAction
 ```php
 // Weaker — non-trivial logic trapped as a protected helper,
 // unavailable to other Actions and harder to test in isolation
-final class CreateAddressAction
+final class CreateAddress
 {
     public function handle(Partner $partner, AddressData $data): Address { /* ... */ }
 
@@ -364,7 +364,7 @@ class AddressData
 
 ### 4.3 Query objects
 
-Reusable, non-trivial queries are encapsulated in a Query object. The class lives in `Queries/`, carries the `Query` suffix, and exposes a **`builder()` method that returns `Illuminate\Database\Eloquent\Builder`** — not a collection, not a result. This lets the caller decide whether to `->get()`, `->paginate()`, add another `->where()`, etc.
+Reusable, non-trivial queries are encapsulated in a Query object. The class lives in `Queries/`, and exposes a **`builder()` method that returns `Illuminate\Database\Eloquent\Builder`** — not a collection, not a result. This lets the caller decide whether to `->get()`, `->paginate()`, add another `->where()`, etc.
 
 `builder()` accepts an optional `filters` array (defaults to empty).
 
@@ -372,7 +372,7 @@ Reusable, non-trivial queries are encapsulated in a Query object. The class live
 // Good
 use Illuminate\Database\Eloquent\Builder;
 
-final class ActivePartnersQuery
+final class ActivePartners
 {
     /**
      * @param array<string, mixed> $filters
@@ -391,9 +391,9 @@ final class ActivePartnersQuery
 }
 
 // Usage — filters are optional; the caller chooses what comes next
-$partners = (new ActivePartnersQuery)->builder()->paginate(20);
+$partners = (new ActivePartners)->builder()->paginate(20);
 
-$partners = (new ActivePartnersQuery)
+$partners = (new ActivePartners)
     ->builder(['country_code' => 'RS', 'search' => 'doo'])
     ->paginate(20);
 ```
@@ -401,7 +401,7 @@ $partners = (new ActivePartnersQuery)
 ```php
 // Bad — builder() returns an already-executed result, losing the ability
 // to chain, paginate, or filter further
-final class ActivePartnersQuery
+final class ActivePartners
 {
     public function builder(): Collection           // ⟵ returns a collection, not a Builder
     {
@@ -608,23 +608,23 @@ We define properties via **constructor property promotion** whenever all of them
 
 ```php
 // Good
-final class CreateAddressAction
+final class CreateAddress
 {
     public function __construct(
         private Geocoder $geocoder,
-        private ResetDefaultAddressesAction $resetDefaults,
+        private ResetDefaultAddresses $resetDefaults,
     ) {}
 }
 ```
 
 ```php
 // Bad — properties declared separately and assigned manually
-final class CreateAddressAction
+final class CreateAddress
 {
     private Geocoder $geocoder;
-    private ResetDefaultAddressesAction $resetDefaults;
+    private ResetDefaultAddresses $resetDefaults;
 
-    public function __construct(Geocoder $geocoder, ResetDefaultAddressesAction $resetDefaults)
+    public function __construct(Geocoder $geocoder, ResetDefaultAddresses $resetDefaults)
     {
         $this->geocoder = $geocoder;
         $this->resetDefaults = $resetDefaults;
