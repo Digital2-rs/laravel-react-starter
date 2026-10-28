@@ -1,0 +1,57 @@
+name: Commitlint
+
+on:
+  pull_request:
+    branches: [main]
+    types: [opened, edited, synchronize, reopened]
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.event.pull_request.number }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  pr-title:
+    name: PR title
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - name: Install commitlint
+        run: npm install --prefix "$RUNNER_TEMP/commitlint" --ignore-scripts --no-audit --no-fund --save-exact @commitlint/cli@21.2.4 @commitlint/config-conventional@21.2.4
+
+      - name: Lint title
+        env:
+          NODE_PATH: ${{ runner.temp }}/commitlint/node_modules
+          PR_TITLE: ${{ github.event.pull_request.title }}
+        run: printf '%s\n' "$PR_TITLE" | "$RUNNER_TEMP/commitlint/node_modules/.bin/commitlint"
+
+  commits:
+    name: Commits
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+
+      - name: Install commitlint
+        run: npm install --prefix "$RUNNER_TEMP/commitlint" --ignore-scripts --no-audit --no-fund --save-exact @commitlint/cli@21.2.4 @commitlint/config-conventional@21.2.4
+
+      - name: Lint commits
+        env:
+          NODE_PATH: ${{ runner.temp }}/commitlint/node_modules
+          BASE_SHA: ${{ github.event.pull_request.base.sha }}
+          HEAD_SHA: ${{ github.event.pull_request.head.sha }}
+        run: |
+          "$RUNNER_TEMP/commitlint/node_modules/.bin/commitlint" --from "$BASE_SHA" --to "$HEAD_SHA" --verbose
