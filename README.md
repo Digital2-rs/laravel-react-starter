@@ -79,7 +79,7 @@ composer ci:check     # full CI gate: eslint + prettier + phpstan + tests
 
 php artisan test --compact
 vendor/bin/pint --dirty       # format changed PHP
-npm run dev / npm run build   # frontend assets
+pnpm run dev / pnpm run build # frontend assets
 ```
 
 ## Quality Gates
