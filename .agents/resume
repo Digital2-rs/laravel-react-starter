@@ -1,0 +1,7 @@
+#!/usr/bin/env bash
+# Runs after activation and on every orb wake. Keep it fast and idempotent.
+set -euo pipefail
+
+cd "$(dirname "${BASH_SOURCE[0]}")/.."
+
+[ -f database/database.sqlite ] || touch database/database.sqlite
