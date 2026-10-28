@@ -1,4 +1,4 @@
-name: Pint
+name: PHP Code Quality
 
 on:
   pull_request:
@@ -9,7 +9,7 @@ permissions:
   contents: read
 
 jobs:
-  pint:
+  code-quality:
     timeout-minutes: 10
     runs-on: ubuntu-latest
     steps:
@@ -28,3 +28,6 @@ jobs:
 
       - name: Check code style
         run: vendor/bin/pint --test --parallel
+
+      - name: Check Rector refactors
+        run: vendor/bin/rector --dry-run

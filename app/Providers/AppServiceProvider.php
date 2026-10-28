@@ -28,7 +28,7 @@ final class AppServiceProvider extends ServiceProvider
     /**
      * Configure default behaviors for production-ready applications.
      */
-    protected function configureDefaults(): void
+    private function configureDefaults(): void
     {
         JsonResource::withoutWrapping();
     }

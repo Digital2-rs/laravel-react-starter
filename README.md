@@ -12,7 +12,7 @@ An opinionated Laravel + Inertia (React) starter kit with strong conventions, ty
 | Routing     | Laravel Wayfinder (typed route functions for the frontend) |
 | Models      | Unguarded via `nunomaduro/essentials`                      |
 | Testing     | Pest v4 · PHPUnit v12                                       |
-| Quality     | Pint · Larastan (PHPStan) · ESLint · Prettier              |
+| Quality     | Pint · Rector · Larastan (PHPStan) · ESLint · Prettier     |
 | DX          | Laravel Boost (MCP) · Pail · Sail                          |
 
 ## Architecture
@@ -73,8 +73,8 @@ The app is served by Laravel Herd at `https://dg2-starter.test`.
 
 ```bash
 composer dev          # server + queue + logs + vite (concurrently)
-composer test         # lint:check + types:check + Pest
-composer lint         # Pint (fix)
+composer test         # Pint + Rector checks, Larastan, Pest
+composer lint         # Rector, then Pint (fix)
 composer ci:check     # full CI gate: eslint + prettier + phpstan + tests
 
 php artisan test --compact
@@ -85,6 +85,7 @@ npm run dev / npm run build   # frontend assets
 ## Quality Gates
 
 - **Pint** — PHP code style
+- **Rector** — automated refactors and upgrades (`composer lint` / `composer lint:check`)
 - **Larastan** — static analysis (`composer types:check`)
 - **ESLint + Prettier** — frontend lint/format
 - **Pest** — feature + unit tests
