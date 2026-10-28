@@ -1,0 +1,97 @@
+#!/usr/bin/env bash
+# Prepares a fresh Amp orb (Debian 12) for this repository.
+# Must stay non-interactive and idempotent: it reruns on stale snapshots.
+set -euo pipefail
+
+cd "$(dirname "${BASH_SOURCE[0]}")/.."
+
+step() {
+  local label="$1"
+  shift
+  local start=$SECONDS
+  echo "==> ${label}"
+  "$@"
+  echo "    ${label} took $((SECONDS - start))s"
+}
+
+php_packages=(
+  php8.4-cli php8.4-bcmath php8.4-curl php8.4-gd php8.4-intl
+  php8.4-mbstring php8.4-sqlite3 php8.4-xml php8.4-zip
+)
+
+install_php() {
+  local missing=()
+  for package in "${php_packages[@]}"; do
+    dpkg-query -W -f='${Status}' "$package" 2>/dev/null | grep -q 'install ok installed' || missing+=("$package")
+  done
+  if [ "${#missing[@]}" -eq 0 ]; then
+    echo "    PHP 8.4 packages already installed"
+    return
+  fi
+
+  if [ ! -f /etc/apt/sources.list.d/php.list ]; then
+    sudo apt-get update -qq
+    sudo DEBIAN_FRONTEND=noninteractive apt-get install -y -qq ca-certificates curl lsb-release
+    sudo curl -fsSLo /usr/share/keyrings/deb.sury.org-php.gpg https://packages.sury.org/php/apt.gpg
+    echo "deb [signed-by=/usr/share/keyrings/deb.sury.org-php.gpg] https://packages.sury.org/php/ $(lsb_release -sc) main" \
+      | sudo tee /etc/apt/sources.list.d/php.list >/dev/null
+  fi
+  sudo apt-get update -qq
+  sudo DEBIAN_FRONTEND=noninteractive apt-get install -y -qq --no-install-recommends "${missing[@]}"
+}
+
+install_composer() {
+  if command -v composer >/dev/null 2>&1; then
+    echo "    composer already installed"
+    return
+  fi
+  local tmp
+  tmp="$(mktemp -d)"
+  local expected
+  expected="$(curl -fsSL https://composer.github.io/installer.sig)"
+  curl -fsSLo "$tmp/composer-setup.php" https://getcomposer.org/installer
+  echo "${expected}  $tmp/composer-setup.php" | sha384sum -c --quiet
+  php "$tmp/composer-setup.php" --quiet --install-dir="$tmp" --filename=composer
+  sudo install -m 0755 "$tmp/composer" /usr/local/bin/composer
+  rm -rf "$tmp"
+}
+
+composer_install() {
+  composer install --no-interaction --no-progress --prefer-dist
+}
+
+pnpm_install() {
+  corepack enable >/dev/null 2>&1 || true
+  pnpm install --frozen-lockfile
+}
+
+prepare_app() {
+  [ -f .env ] || cp -- .env.example .env
+  grep -q '^APP_KEY=base64:' .env || php artisan key:generate --no-interaction
+  [ -f database/database.sqlite ] || touch database/database.sqlite
+  php artisan migrate --force --no-interaction
+}
+
+write_orb_guidance() {
+  local guidance="$HOME/.config/amp/AGENTS.md"
+  local marker="# laravel-react-starter orb notes"
+  mkdir -p "$(dirname "$guidance")"
+  if ! grep -Fqx "$marker" "$guidance" 2>/dev/null; then
+    cat >> "$guidance" <<'EOF'
+
+# laravel-react-starter orb notes
+- This orb has no Laravel Herd. Ignore the Herd guidance in the repository AGENTS.md.
+- Run `amp orb services ensure` to start the app (`php artisan serve` on port 8000, see `.amp/services.yaml`) and get its portal URL.
+- The app uses SQLite at `database/database.sqlite`; tests use in-memory SQLite.
+- After frontend changes, run `pnpm run build` so the served app and Inertia tests pick up the new assets.
+EOF
+  fi
+}
+
+step "Install PHP 8.4" install_php
+step "Install Composer" install_composer
+step "composer install" composer_install
+step "pnpm install" pnpm_install
+step "Prepare .env and database" prepare_app
+step "Build frontend assets" pnpm run build
+step "Write orb agent guidance" write_orb_guidance
